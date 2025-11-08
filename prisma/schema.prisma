@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model GameRoom {
+  id           String   @id @default(cuid())
+  name         String
+  playerMax    Int
+  status       String   @default("WAITING") // WAITING, PLAYING, FINISHED
+  round        String   @default("WAITING") // WAITING, PREFLOP, FLOP, TURN, RIVER, SHOWDOWN
+  pot          Int      @default(0)
+  bigBlind     Int      @default(20)
+  smallBlind   Int      @default(10)
+  players      Player[]
+  firstCard    String?
+  secondCard   String?
+  thirdCard    String?
+  fourthCard   String?
+  fifthCard    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastAction   DateTime @default(now())
+}
+
+model Player {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  password     String
+  seatNumber   Int?
+  chips        Int       @default(1000)
+  currentBet   Int       @default(0)
+  totalBet     Int       @default(0)
+  isConnected  Boolean   @default(true)
+  isFolded     Boolean   @default(false)
+  isAllIn      Boolean   @default(false)
+  hasActed     Boolean   @default(false)
+  role         String    @default("") //"DEALER" | "SMALL_BLIND" | "BIG_BLIND" | "VIEWER" | ""
+  gameRoomId   String?
+  firstCard    String?
+  secondCard   String?
+  joinedAt     DateTime  @default(now())
+  lastSeen     DateTime  @default(now())
+  gameRoom     GameRoom? @relation(fields: [gameRoomId], references: [id], onDelete: Cascade)
+
+  @@unique([id, gameRoomId])
+}

@@ -1,0 +1,65 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Hide scrollbar */
+::-webkit-scrollbar {
+	display: none;
+}
+
+@theme {
+	/* Font Family */
+	--font-primary: var(--font-azeret-mono);
+	--font-secondary: var(--font-anton);
+	--font-cursor: var(--font-barlow);
+
+	/* Colors */
+	--color-accent-white: #ffffff;
+	--color-accent-gray: #999589;
+	--color-accent-black: #201e1f;
+	--color-accent-green: #558378;
+	--color-accent-red: #ff2226;
+}
+
+@layer base {
+	body {
+		background-color: var(--color-accent-black);
+		font-family: var(--font-primary);
+		color: var(--color-accent-white);
+	}
+}
+
+@layer components {
+	/* Text */
+	.text-title {
+		font-family: var(--font-secondary);
+		color: var(--color-accent-white);
+		font-weight: 400;
+		font-size: 110px;
+		line-height: 1;
+	}
+
+	.text-header {
+		font-family: var(--font-secondary);
+		color: var(--color-accent-white);
+		font-weight: 400;
+		font-size: 48px;
+		line-height: 1;
+	}
+
+	.text-primary {
+		font-family: var(--font-primary);
+		color: var(--color-accent-white);
+		font-weight: 400;
+		font-size: 16px;
+	}
+
+	/* Button */
+	.btn-primary {
+		@apply bg-accent-red text-accent-white w-[250px] cursor-pointer px-11 py-1 transition-all duration-500 hover:opacity-70;
+	}
+
+	/* Divider */
+	.divider-primary {
+		@apply bg-accent-red mx-2 h-10 w-[3px];
+	}
+}
