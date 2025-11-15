@@ -259,9 +259,20 @@ export class PokerGame {
 			(p) =>
 				(p.chips > 0 || p.totalBet > 0) && p.role !== PlayerRoleEnum.VIEWER,
 		)
+
+		// Ensure all active players have empty hands before dealing
+		activePlayers.forEach((player) => {
+			player.hand = []
+		})
+
 		deck.dealToPlayers(activePlayers)
 		this.gameState.deck = deck.getRemainingCards()
 		this.gameState.message = GAME_MESSAGES.HOLE_CARDS_DEALT
+
+		console.log("Dealt hole cards to", activePlayers.length, "players")
+		activePlayers.forEach((player) => {
+			console.log(`Player ${player.name} has ${player.hand.length} cards`)
+		})
 	}
 
 	// ===== COMMUNITY CARDS =====

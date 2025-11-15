@@ -3,7 +3,12 @@ import OpponentsCards from "@/components/card/OpponentsCards"
 import PlayerCards from "@/components/card/PlayerCards"
 // Types from our game logic
 import { PlayerLayoutProps } from "@/common/interface"
-import { PlayerActionEnum, PositionEnum, PlayerRoleEnum } from "@/common/enum"
+import {
+	PlayerActionEnum,
+	PositionEnum,
+	PlayerRoleEnum,
+	RoundEnum,
+} from "@/common/enum"
 import { GameUtils } from "@/lib/GameUtils"
 
 // Hardcoded seat positions for up to 9 players
@@ -54,6 +59,8 @@ export default function PlayerLayout({
 	viewerCards,
 	currentRound,
 	winners,
+	dbPlayerData,
+	communityCards,
 	processPlayerAction,
 	handleRaiseAmountChange,
 	raiseAmount,
@@ -97,11 +104,14 @@ export default function PlayerLayout({
 					: ""
 				const seat = playerSeats[index]
 				// Only the current user should ever see action buttons, and only on their TURN, and only if not eliminated
+				// Also hide actions during CARD_REVEAL and SHOWDOWN phases
 				const showActions =
 					isCurrentUser &&
 					isTURNOwner &&
 					!player.isFolded &&
-					!isEliminatedViewer
+					!isEliminatedViewer &&
+					currentRound !== RoundEnum.CARD_REVEAL &&
+					currentRound !== RoundEnum.SHOWDOWN
 				const validation =
 					showActions && pokerGame
 						? pokerGame.validatePlayerAction({
@@ -130,6 +140,8 @@ export default function PlayerLayout({
 								processPlayerAction={processPlayerAction}
 								handleRaiseAmountChange={handleRaiseAmountChange}
 								raiseAmount={raiseAmount}
+								currentRound={currentRound}
+								communityCards={communityCards}
 								playerInfo={{
 									bestHand,
 									positions,
@@ -147,6 +159,8 @@ export default function PlayerLayout({
 								validation={validation}
 								processPlayerAction={processPlayerAction}
 								handleRaiseAmountChange={handleRaiseAmountChange}
+								dbPlayerData={dbPlayerData}
+								communityCards={communityCards}
 								playerInfo={{
 									bestHand,
 									positions,

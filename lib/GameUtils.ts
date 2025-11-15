@@ -4,10 +4,10 @@ import {
 	ActionValidation,
 } from "@/common/interface"
 import { GameEngine } from "./GameEngine"
-import { RoundEnum, PlayerActionEnum } from "@/common/enum"
+import { RoundEnum, PlayerActionEnum, HandRankEnum } from "@/common/enum"
 import { PokerGame } from "./PokerGame"
 import { GAME_UTILS_CONFIG as GAME_CONFIG } from "@/common/constant"
-import { UI_LABELS } from "@/common/label"
+import { UI_LABELS, HAND_RANK_LABELS } from "@/common/label"
 
 // ===== CONSTANTS AND CONFIGURATION =====
 
@@ -105,6 +105,13 @@ export class GameUtils {
 			}
 		}
 		return null
+	}
+
+	/**
+	 * Gets the display name for a hand rank using the centralized labels
+	 */
+	static getHandRankDisplayName(handRank: HandRankEnum): string {
+		return HAND_RANK_LABELS[handRank] || "Unknown Hand"
 	}
 
 	/**

@@ -58,24 +58,10 @@ export class GameStateManager {
 		if (result.success) {
 			gameRoom.lastUpdate = Date.now()
 
-			// Check for tournament winner (only one non-viewer player with chips left)
+			// NOTE: Tournament winner should only be checked AFTER showdown and pot distribution
+			// Removed premature tournament winner check here to prevent declaring winner
+			// when players go all-in but the hand is still in progress
 			const game = gameRoom.game
-			if (game.hasTournamentWinner()) {
-				const winner = game.getTournamentWinner()
-				const tournamentStatus = game.getTournamentStatus()
-				const gameState = game.getGameState()
-
-				console.log(`🏆 TOURNAMENT WINNER DECLARED: ${winner?.name}`)
-				console.log("Final Tournament Status:", tournamentStatus)
-
-				gameState.tournamentWinner = winner
-				gameState.gameEnded = true
-				gameState.message = `🏆 ${winner?.name} wins the tournament! 🏆`
-
-				// Persist the final tournament state
-				this.persistState(roomId, gameState)
-				return result
-			}
 
 			// Synchronous persist after every action to prevent race conditions
 			this.persistState(roomId, gameRoom.game.getGameState())
@@ -249,6 +235,12 @@ export class GameStateManager {
 				if (!dbp) continue
 
 				const role = p.role || ""
+
+				// Clear cards for viewers and ensure fresh cards for new hands
+				const shouldClearCards =
+					p.role === PlayerRoleEnum.VIEWER ||
+					(p.hand.length === 0 && state.round === RoundEnum.PREFLOP)
+
 				playerUpdates.push(
 					prisma.player.update({
 						where: { id: dbp.id },
@@ -260,25 +252,21 @@ export class GameStateManager {
 							isAllIn: p.isAllIn,
 							hasActed: p.hasActed,
 							role,
-							// Save hole cards for better matching (viewers shouldn't have cards)
-							firstCard:
-								p.role === PlayerRoleEnum.VIEWER
-									? null
-									: p.hand?.[0]
-										? cardToString(p.hand[0])
-										: null,
-							secondCard:
-								p.role === PlayerRoleEnum.VIEWER
-									? null
-									: p.hand?.[1]
-										? cardToString(p.hand[1])
-										: null,
+							// Properly handle card state - clear for viewers and empty hands
+							firstCard: shouldClearCards
+								? null
+								: p.hand?.[0]
+									? cardToString(p.hand[0])
+									: null,
+							secondCard: shouldClearCards
+								? null
+								: p.hand?.[1]
+									? cardToString(p.hand[1])
+									: null,
 						},
 					}),
 				)
-			}
-
-			// Prepare game room update
+			} // Prepare game room update
 			const [c1, c2, c3, c4, c5] = state.communityCards
 			const gameRoomUpdate = prisma.gameRoom.update({
 				where: { id: roomId },

@@ -14,7 +14,7 @@ import CardLayout from "@/components/card/CardLayout"
 // Game Logic and Types
 import { PlayerCardsProps } from "@/common/interface"
 import { PlayerActionEnum, PlayerRoleEnum } from "@/common/enum"
-import { UIUtils } from "@/lib/GameUtils"
+import { UIUtils, GameUtils } from "@/lib/GameUtils"
 import { cn } from "@/lib/utils"
 // No suit conversion needed; CardLayout accepts SuitEnum
 
@@ -27,9 +27,58 @@ export default function PlayerCards({
 	handleRaiseAmountChange,
 	raiseAmount,
 	playerInfo,
+	communityCards,
 }: PlayerCardsProps) {
 	// Check if player is a viewer
 	const isViewer = player.role === PlayerRoleEnum.VIEWER
+
+	// Calculate hand ranking for display during showdown phases
+	const getHandRankingDisplay = () => {
+		// For the current player, always show hand rankings if they have cards
+		if (!isViewer && player.hand && player.hand.length === 2) {
+			// If we have community cards, evaluate with them
+			if (communityCards && communityCards.length >= 3) {
+				const evaluation = GameUtils.evaluatePlayerHand(player, communityCards)
+				if (evaluation && evaluation.rank) {
+					return GameUtils.getHandRankDisplayName(evaluation.rank)
+				}
+			} else {
+				// If no community cards yet, analyze pocket cards only
+				const card1 = player.hand[0]
+				const card2 = player.hand[1]
+
+				if (card1.rank === card2.rank) {
+					return "One Pair"
+				} else {
+					// Determine high card
+					const rankOrder = [
+						"2",
+						"3",
+						"4",
+						"5",
+						"6",
+						"7",
+						"8",
+						"9",
+						"10",
+						"J",
+						"Q",
+						"K",
+						"A",
+					]
+					const rank1Index = rankOrder.indexOf(card1.rank)
+					const rank2Index = rankOrder.indexOf(card2.rank)
+					const highRank = rank1Index > rank2Index ? card1.rank : card2.rank
+					return `High Card (${highRank})`
+				}
+			}
+		}
+
+		// Return playerInfo.bestHand if no better option available
+		return playerInfo.bestHand || ""
+	}
+
+	const handRankingDisplay = getHandRankingDisplay()
 
 	return (
 		<div
@@ -44,9 +93,11 @@ export default function PlayerCards({
 					<AnimatePresence>
 						{player.hand.map((card, i) => {
 							const value = String(card.rank)
+							// Create unique key combining card properties and index to ensure proper re-rendering
+							const uniqueKey = `${card.suit}-${card.rank}-${i}-${player.id}`
 							return (
 								<motion.div
-									key={i}
+									key={uniqueKey}
 									initial={{ opacity: 0, y: -20 }}
 									animate={{ opacity: 1, y: 0 }}
 									exit={{ opacity: 0, y: -20 }}
@@ -102,9 +153,9 @@ export default function PlayerCards({
 								Current Bet: ${playerInfo.currentBet}
 							</p>
 						)}
-					{player.role !== PlayerRoleEnum.VIEWER && playerInfo.bestHand && (
+					{player.role !== PlayerRoleEnum.VIEWER && handRankingDisplay && (
 						<p className="text-[10px] font-semibold text-blue-400">
-							{playerInfo.bestHand}
+							{handRankingDisplay}
 						</p>
 					)}
 				</div>

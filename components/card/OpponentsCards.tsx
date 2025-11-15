@@ -13,13 +13,15 @@ import CardLayout from "@/components/card/CardLayout"
 
 // Game Logic and Types
 import { OpponentsCardsProps } from "@/common/interface"
+import type { Card } from "@/common/interface"
 import {
 	RoundEnum,
 	PlayerActionEnum,
 	SuitEnum,
 	PlayerRoleEnum,
 } from "@/common/enum"
-import { UIUtils } from "@/lib/GameUtils"
+import { UIUtils, GameUtils } from "@/lib/GameUtils"
+import { stringToCard } from "@/lib/Deck"
 import { cn } from "@/lib/utils"
 // No suit conversion needed; CardLayout accepts SuitEnum
 
@@ -33,6 +35,8 @@ export default function OpponentsCards({
 	handleRaiseAmountChange,
 	raiseAmount,
 	playerInfo,
+	dbPlayerData,
+	communityCards,
 }: OpponentsCardsProps) {
 	const isSHOWDOWN = currentRound === RoundEnum.SHOWDOWN
 	const isCARD_REVEAL = currentRound === RoundEnum.CARD_REVEAL
@@ -40,6 +44,80 @@ export default function OpponentsCards({
 	const isFolded = player.isFolded
 	const isTURNOwner = playerInfo?.isActive
 	const isViewer = player.role === PlayerRoleEnum.VIEWER
+
+	// Get cards from database data during showdown phases
+	const getCardsToDisplay = () => {
+		// During SHOWDOWN or CARD_REVEAL, try to get cards from database
+		if (
+			(isSHOWDOWN || isCARD_REVEAL || isWinner) &&
+			dbPlayerData &&
+			!isViewer
+		) {
+			// Find the matching player in database data by username (more reliable than ID mapping)
+			const dbPlayer = dbPlayerData.find((dp) => dp.username === player.name)
+			if (dbPlayer && dbPlayer.firstCard && dbPlayer.secondCard) {
+				// Convert database card strings to Card objects
+				const dbCards = [
+					stringToCard(dbPlayer.firstCard),
+					stringToCard(dbPlayer.secondCard),
+				].filter(Boolean) as Card[]
+
+				if (dbCards.length === 2) {
+					return dbCards
+				}
+			}
+		}
+
+		// Fallback to player.hand or show backs
+		return isSHOWDOWN || isCARD_REVEAL || isWinner ? player.hand : [null, null]
+	}
+
+	const cardsToDisplay = getCardsToDisplay()
+
+	// Get hand ranking for display during showdown phases
+	const getHandRankingDisplay = () => {
+		// Only show hand rankings during CARD_REVEAL or SHOWDOWN phases
+		if (
+			(isCARD_REVEAL || isSHOWDOWN) &&
+			!isViewer &&
+			communityCards &&
+			communityCards.length >= 3
+		) {
+			// Try to get cards from database data first
+			const dbPlayer = dbPlayerData?.find((dp) => dp.username === player.name)
+			if (dbPlayer && dbPlayer.firstCard && dbPlayer.secondCard) {
+				const dbCards = [
+					stringToCard(dbPlayer.firstCard),
+					stringToCard(dbPlayer.secondCard),
+				].filter(Boolean) as Card[]
+
+				if (dbCards.length === 2) {
+					// Create a temporary player object with the database cards for evaluation
+					const playerWithCards = { ...player, hand: dbCards }
+					const evaluation = GameUtils.evaluatePlayerHand(
+						playerWithCards,
+						communityCards,
+					)
+					if (evaluation && evaluation.rank) {
+						return GameUtils.getHandRankDisplayName(evaluation.rank)
+					}
+				}
+			}
+
+			// Fallback to existing player hand if available
+			if (player.hand && player.hand.length === 2) {
+				const evaluation = GameUtils.evaluatePlayerHand(player, communityCards)
+				if (evaluation && evaluation.rank) {
+					return GameUtils.getHandRankDisplayName(evaluation.rank)
+				}
+			}
+		}
+
+		// Return playerInfo.bestHand if no better option available
+		return playerInfo?.bestHand || ""
+	}
+
+	const handRankingDisplay = getHandRankingDisplay()
 
 	return (
 		<div
@@ -54,35 +132,33 @@ export default function OpponentsCards({
 			{!isViewer && (
 				<div className="flex -space-x-6">
 					<AnimatePresence>
-						{(isSHOWDOWN || isCARD_REVEAL || isWinner
-							? player.hand
-							: [null, null]
-						) // Show cards during CARD_REVEAL and SHOWDOWN
-							.map((card, i) => {
-								// If showing backs, use dummy suit/value
-								const value = card ? String(card.rank) : "?"
-								const suit = card ? card.suit : SuitEnum.SPADES
-								return (
-									<motion.div
-										key={i}
-										initial={{ opacity: 0, y: -20 }}
-										animate={{ opacity: 1, y: 0 }}
-										exit={{ opacity: 0, y: -20 }}
-										transition={{ delay: i * 0.1 }}
-										className={cn(i === 1 ? "relative top-3" : "")}
-									>
-										<CardLayout
-											variant={
-												isSHOWDOWN || isCARD_REVEAL || isWinner
-													? "front"
-													: "back"
-											}
-											suit={suit}
-											value={value}
-										/>
-									</motion.div>
-								)
-							})}
+						{cardsToDisplay.map((card, i) => {
+							// If showing backs, use dummy suit/value
+							const value = card ? String(card.rank) : "?"
+							const suit = card ? card.suit : SuitEnum.SPADES
+							// Create unique key that changes when cards change or round changes
+							const uniqueKey = card
+								? `${card.suit}-${card.rank}-${i}-${player.id}-${currentRound}`
+								: `back-${i}-${player.id}-${currentRound}`
+							return (
+								<motion.div
+									key={uniqueKey}
+									initial={{ opacity: 0, y: -20 }}
+									animate={{ opacity: 1, y: 0 }}
+									exit={{ opacity: 0, y: -20 }}
+									transition={{ delay: i * 0.1 }}
+									className={cn(i === 1 ? "relative top-3" : "")}
+								>
+									<CardLayout
+										variant={
+											isSHOWDOWN || isCARD_REVEAL || isWinner ? "front" : "back"
+										}
+										suit={suit}
+										value={value}
+									/>
+								</motion.div>
+							)
+						})}
 					</AnimatePresence>
 				</div>
 			)}
@@ -128,7 +204,7 @@ export default function OpponentsCards({
 						(currentRound === RoundEnum.SHOWDOWN ||
 							currentRound === RoundEnum.CARD_REVEAL) && (
 							<p className="text-[10px] font-semibold text-blue-400">
-								{playerInfo?.bestHand ?? ""}
+								{handRankingDisplay}
 							</p>
 						)}
 				</div>

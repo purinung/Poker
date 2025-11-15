@@ -36,6 +36,9 @@ const GameRoomContent = () => {
 	// Viewer hole cards fetched from DB (like "ASPADES"), typed to Card
 	const [viewerCards, setViewerCards] = useState<Card[]>([])
 
+	// Store database player data for showdown card display
+	const [dbPlayerData, setDbPlayerData] = useState<RoomPlayerApi[]>([])
+
 	// Map of server playerId -> local PokerGame playerId (index-based)
 	const [idMap, setIdMap] = useState<Record<string, string>>({})
 
@@ -125,6 +128,10 @@ const GameRoomContent = () => {
 				})),
 			)
 			setRoomPlayerMax(room.playerMax || 9)
+
+			// Store database player data for showdown card display
+			setDbPlayerData(sorted)
+
 			// Derive game started from room.status (PLAYING) or non-waiting round
 			if (room.status || room.round) {
 				const status = (room.status || "").toUpperCase()
@@ -144,7 +151,16 @@ const GameRoomContent = () => {
 						const next = [c1, c2]
 							.map((s) => (s ? stringToCard(s) : null))
 							.filter(Boolean) as Card[]
-						setViewerCards(next)
+
+						// Only set viewer cards if we actually have valid cards from DB
+						// This prevents setting empty arrays that might interfere with card dealing
+						if (next.length === 2) {
+							setViewerCards(next)
+						} else if (next.length === 0) {
+							// Explicitly clear when no cards should be shown
+							setViewerCards([])
+						}
+						// If length is 1, wait for both cards to be available
 					}
 				}
 			}
@@ -368,6 +384,25 @@ const GameRoomContent = () => {
 			const game = gameState.pokerGame
 			if (game) {
 				const gs = game.getGameState()
+				const prevRound = gs.round
+				const newRound = receivedGameState.round
+
+				// Detect new hand by round transition back to PREFLOP
+				const isNewHand =
+					(prevRound !== RoundEnum.PREFLOP && newRound === RoundEnum.PREFLOP) ||
+					(prevRound === RoundEnum.SHOWDOWN &&
+						newRound === RoundEnum.PREFLOP) ||
+					(prevRound === RoundEnum.CARD_REVEAL &&
+						newRound === RoundEnum.PREFLOP)
+
+				// If new hand detected, clear all player hands to prevent showing old cards
+				if (isNewHand) {
+					console.log("New hand detected - clearing all player hands")
+					gs.players.forEach((player) => {
+						player.hand = []
+					})
+				}
+
 				// Sync round, pot, community cards
 				gs.round = receivedGameState.round
 				gs.pot = receivedGameState.pot
@@ -419,6 +454,21 @@ const GameRoomContent = () => {
 					})
 					lastMetaRoundRef.current = newRound
 				}
+
+				// Also refresh database player data during showdown phases to get all player cards
+				if (
+					newRound === RoundEnum.CARD_REVEAL ||
+					newRound === RoundEnum.SHOWDOWN
+				) {
+					fetchRoomMeta(roomId).then((room) => {
+						if (room && room.players) {
+							const sorted = Array.isArray(room.players)
+								? sortPlayersBySeat(room.players)
+								: []
+							setDbPlayerData(sorted)
+						}
+					})
+				}
 			} catch {}
 		}
 
@@ -450,11 +500,36 @@ const GameRoomContent = () => {
 			if (!localId) return
 			const lp = gs.players.find((p) => p.id === localId)
 			if (!lp) return
+
+			// Don't inject cards if player is a viewer or eliminated
+			if (lp.role === PlayerRoleEnum.VIEWER) {
+				lp.hand = []
+				setForceRefresh((x) => x + 1)
+				return
+			}
+
+			// Don't inject old cards when starting a new hand
+			// If round is PREFLOP and the player has no currentBet/totalBet, it's likely a new hand
+			const isNewHand =
+				gs.round === RoundEnum.PREFLOP &&
+				lp.currentBet === 0 &&
+				lp.totalBet === 0 &&
+				!lp.hasActed
+
+			// If it's a new hand and we have old cards from DB, wait for fresh cards
+			if (isNewHand && viewerCards.length > 0 && lp.hand.length === 0) {
+				console.log(
+					"Waiting for fresh cards in new hand, not injecting old DB cards",
+				)
+				return
+			}
+
 			// If already matches, skip
 			const same =
 				lp.hand.length === viewerCards.length &&
 				lp.hand.every((c, i) => c === viewerCards[i])
 			if (same) return
+
 			const prevHand = [...lp.hand]
 			// Remove DB cards from deck if present
 			gs.deck = gs.deck.filter((c) => !viewerCards.includes(c as Card))
@@ -464,10 +539,12 @@ const GameRoomContent = () => {
 					gs.deck.push(old as Card)
 				}
 			}
-			// Set player hand to DB cards
-			lp.hand = [...viewerCards]
-			// Force refresh so UI updates
-			setForceRefresh((x) => x + 1)
+			// Set player hand to DB cards only if not a new hand
+			if (!isNewHand) {
+				lp.hand = [...viewerCards]
+				// Force refresh so UI updates
+				setForceRefresh((x) => x + 1)
+			}
 		} catch {
 			// no-op
 		}
@@ -846,6 +923,8 @@ const GameRoomContent = () => {
 					viewerCards={viewerCards}
 					currentRound={gameState.round}
 					winners={(gameState.winners ?? []) as Player[]}
+					dbPlayerData={dbPlayerData}
+					communityCards={communityCards}
 					processPlayerAction={processPlayerAction}
 					handleRaiseAmountChange={handleRaiseAmountChange}
 					raiseAmount={raiseAmount}
