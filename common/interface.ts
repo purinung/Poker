@@ -151,6 +151,10 @@ export interface PlayerLayoutProps {
 	viewerCards?: Card[]
 	currentRound: RoundEnum
 	winners: Player[]
+	// Database player data with card information for showdown display
+	dbPlayerData?: RoomPlayerApi[]
+	// Community cards for hand evaluation during showdown
+	communityCards?: Card[]
 	processPlayerAction: (
 		playerId: string,
 		action: PlayerActionEnum,
@@ -263,11 +267,15 @@ export interface BaseCardProps {
 
 export interface PlayerCardsProps extends BaseCardProps {
 	isCurrentPlayer: boolean
+	currentRound?: RoundEnum
+	communityCards?: Card[]
 }
 
 export interface OpponentsCardsProps extends BaseCardProps {
 	currentRound: RoundEnum
 	winners: Player[]
+	dbPlayerData?: RoomPlayerApi[]
+	communityCards?: Card[]
 }
 
 export interface CommunityCardsProps {
