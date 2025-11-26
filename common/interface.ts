@@ -306,6 +306,12 @@ export interface HandStrengthResult {
 	handRank: HandRankEnum
 	count: number
 	percentage: number
+	wins: number
+	ties: number
+	losses: number
+	winPercentage: number
+	tiePercentage: number
+	losePercentage: number
 }
 
 export interface PredictionResult {

@@ -12,7 +12,7 @@ import { useParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Player, GameRoom, RoomPlayerApi, GameState } from "@/common/interface"
 import type { Card } from "@/common/interface"
-import { UI_LABELS } from "@/common/label"
+import { UI_LABELS, ROUND_LABELS } from "@/common/label"
 import { stringToCard } from "@/lib/Deck"
 import { PokerGame } from "@/lib/PokerGame"
 import { GameUtils } from "@/lib/GameUtils"
@@ -779,6 +779,23 @@ const GameRoomContent = () => {
 				</div>
 			</div>
 
+			{/* Round Display - Top Center */}
+			{gameState.gameStarted &&
+				gameState.round !== RoundEnum.PreRoundBetting && (
+					<motion.div
+						initial={{ opacity: 0, y: -20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className="fixed top-6 left-1/2 z-40 -translate-x-1/2"
+					>
+						<div className="bg-accent-green flex items-center rounded-lg p-4 shadow-lg">
+							<p className="font-secondary text-accent-white text-[24px]">
+								{ROUND_LABELS[gameState.round]}
+							</p>
+						</div>
+					</motion.div>
+				)}
+
 			{/* Table */}
 			<div className="relative flex flex-grow items-center justify-center">
 				<div className="bg-accent-green border-accent-gray absolute h-[400px] w-[900px] rounded-full border-[8px]"></div>
@@ -866,24 +883,6 @@ const GameRoomContent = () => {
 								: UI_LABELS.START_GAME}
 						</motion.button>
 					)}
-
-				{/* Card Reveal Phase Display */}
-				<AnimatePresence>
-					{gameState.round === RoundEnum.CARD_REVEAL && (
-						<motion.div
-							initial={{ scale: 0.5, opacity: 0 }}
-							animate={{ scale: 1, opacity: 1 }}
-							exit={{ scale: 0.5, opacity: 0 }}
-							className="absolute inset-0 z-20 flex flex-col items-center justify-center"
-						>
-							<div className="bg-accent-black flex items-center rounded-lg p-4 shadow-lg">
-								<h2 className="font-secondary text-[56px] text-blue-400">
-									REVEALING CARDS...
-								</h2>
-							</div>
-						</motion.div>
-					)}
-				</AnimatePresence>
 
 				{/* Winners Display (only on SHOWDOWN, not during CARD_REVEAL) */}
 				<AnimatePresence>

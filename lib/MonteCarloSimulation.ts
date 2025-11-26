@@ -111,30 +111,40 @@ export class MonteCarloSimulation {
 		let ties = 0
 		let losses = 0
 
-		const playerHandStrengths: { [key in HandRankEnum]: number } = {
-			HIGHCARD: 0,
-			ONEPAIR: 0,
-			TWOPAIR: 0,
-			THREEOFAKIND: 0,
-			STRAIGHT: 0,
-			FLUSH: 0,
-			FULLHOUSE: 0,
-			FOUROFKIND: 0,
-			STRAIGHTFLUSH: 0,
-			ROYALFLUSH: 0,
+		interface HandStrengthTracker {
+			count: number
+			wins: number
+			ties: number
+			losses: number
 		}
 
-		const opponentHandStrengths: { [key in HandRankEnum]: number } = {
-			HIGHCARD: 0,
-			ONEPAIR: 0,
-			TWOPAIR: 0,
-			THREEOFAKIND: 0,
-			STRAIGHT: 0,
-			FLUSH: 0,
-			FULLHOUSE: 0,
-			FOUROFKIND: 0,
-			STRAIGHTFLUSH: 0,
-			ROYALFLUSH: 0,
+		const playerHandStrengths: { [key in HandRankEnum]: HandStrengthTracker } =
+			{
+				HIGHCARD: { count: 0, wins: 0, ties: 0, losses: 0 },
+				ONEPAIR: { count: 0, wins: 0, ties: 0, losses: 0 },
+				TWOPAIR: { count: 0, wins: 0, ties: 0, losses: 0 },
+				THREEOFAKIND: { count: 0, wins: 0, ties: 0, losses: 0 },
+				STRAIGHT: { count: 0, wins: 0, ties: 0, losses: 0 },
+				FLUSH: { count: 0, wins: 0, ties: 0, losses: 0 },
+				FULLHOUSE: { count: 0, wins: 0, ties: 0, losses: 0 },
+				FOUROFKIND: { count: 0, wins: 0, ties: 0, losses: 0 },
+				STRAIGHTFLUSH: { count: 0, wins: 0, ties: 0, losses: 0 },
+				ROYALFLUSH: { count: 0, wins: 0, ties: 0, losses: 0 },
+			}
+
+		const opponentHandStrengths: {
+			[key in HandRankEnum]: HandStrengthTracker
+		} = {
+			HIGHCARD: { count: 0, wins: 0, ties: 0, losses: 0 },
+			ONEPAIR: { count: 0, wins: 0, ties: 0, losses: 0 },
+			TWOPAIR: { count: 0, wins: 0, ties: 0, losses: 0 },
+			THREEOFAKIND: { count: 0, wins: 0, ties: 0, losses: 0 },
+			STRAIGHT: { count: 0, wins: 0, ties: 0, losses: 0 },
+			FLUSH: { count: 0, wins: 0, ties: 0, losses: 0 },
+			FULLHOUSE: { count: 0, wins: 0, ties: 0, losses: 0 },
+			FOUROFKIND: { count: 0, wins: 0, ties: 0, losses: 0 },
+			STRAIGHTFLUSH: { count: 0, wins: 0, ties: 0, losses: 0 },
+			ROYALFLUSH: { count: 0, wins: 0, ties: 0, losses: 0 },
 		}
 
 		for (let i = 0; i < this.SIMULATION_COUNT; i++) {
@@ -154,9 +164,23 @@ export class MonteCarloSimulation {
 				losses++
 			}
 
-			// Track hand strengths
-			playerHandStrengths[simulationResult.playerHand.rank]++
-			opponentHandStrengths[simulationResult.bestOpponentHand.rank]++
+			// Track hand strengths with win/tie/lose breakdown
+			const playerRank = simulationResult.playerHand.rank
+			const opponentRank = simulationResult.bestOpponentHand.rank
+
+			playerHandStrengths[playerRank].count++
+			opponentHandStrengths[opponentRank].count++
+
+			if (simulationResult.playerWins) {
+				playerHandStrengths[playerRank].wins++
+				opponentHandStrengths[opponentRank].losses++
+			} else if (simulationResult.isTie) {
+				playerHandStrengths[playerRank].ties++
+				opponentHandStrengths[opponentRank].ties++
+			} else {
+				playerHandStrengths[playerRank].losses++
+				opponentHandStrengths[opponentRank].wins++
+			}
 		}
 
 		return {
@@ -252,18 +276,32 @@ export class MonteCarloSimulation {
 	 * Converts hand strength counts to percentage results
 	 */
 	private static convertToHandStrengthResults(handStrengths: {
-		[key in HandRankEnum]: number
+		[key in HandRankEnum]: {
+			count: number
+			wins: number
+			ties: number
+			losses: number
+		}
 	}): HandStrengthResult[] {
 		const total = Object.values(handStrengths).reduce(
-			(sum, count) => sum + count,
+			(sum, tracker) => sum + tracker.count,
 			0,
 		)
 
 		return Object.entries(handStrengths)
-			.map(([handRank, count]) => ({
+			.map(([handRank, tracker]) => ({
 				handRank: handRank as HandRankEnum,
-				count,
-				percentage: total > 0 ? (count / total) * 100 : 0,
+				count: tracker.count,
+				percentage: total > 0 ? (tracker.count / total) * 100 : 0,
+				wins: tracker.wins,
+				ties: tracker.ties,
+				losses: tracker.losses,
+				winPercentage:
+					tracker.count > 0 ? (tracker.wins / tracker.count) * 100 : 0,
+				tiePercentage:
+					tracker.count > 0 ? (tracker.ties / tracker.count) * 100 : 0,
+				losePercentage:
+					tracker.count > 0 ? (tracker.losses / tracker.count) * 100 : 0,
 			}))
 			.filter((result) => result.count > 0)
 			.sort((a, b) => b.percentage - a.percentage)
