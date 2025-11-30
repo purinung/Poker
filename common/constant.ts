@@ -185,7 +185,7 @@ export const SSE_CONFIG = {
 
 // Monte Carlo Simulation Configuration
 export const MONTE_CARLO_CONFIG = {
-	SIMULATION_COUNT: 30000,
+	SIMULATION_COUNT: 50000,
 } as const
 
 // Validation Constants

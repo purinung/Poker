@@ -469,7 +469,7 @@ const GameRoomContent = () => {
 						}
 					})
 				}
-			} catch {}
+			} catch { }
 		}
 
 		eventSource.onerror = (error) => {
@@ -517,12 +517,15 @@ const GameRoomContent = () => {
 				!lp.hasActed
 
 			// If it's a new hand and we have old cards from DB, wait for fresh cards
+			// REMOVED: Blocking logic that prevented fresh cards from being shown
+			/*
 			if (isNewHand && viewerCards.length > 0 && lp.hand.length === 0) {
 				console.log(
 					"Waiting for fresh cards in new hand, not injecting old DB cards",
 				)
 				return
 			}
+			*/
 
 			// If already matches, skip
 			const same =
@@ -697,8 +700,8 @@ const GameRoomContent = () => {
 		)
 		const first = withSeat.length
 			? withSeat.reduce((a, b) =>
-					(a.seatNumber as number) <= (b.seatNumber as number) ? a : b,
-				)
+				(a.seatNumber as number) <= (b.seatNumber as number) ? a : b,
+			)
 			: roomPlayers[0]
 		return first?.id === playerId
 	}, [playerId, roomPlayers])
@@ -721,7 +724,7 @@ const GameRoomContent = () => {
 	// Resolve the local PokerGame id for the current viewer by username first, then fallback to idMap
 	const viewerLocalId = gameState.pokerGame
 		? gameState.pokerGame.getPlayers().find((p) => p.name === username)?.id ||
-			(playerId ? idMap[playerId] : "")
+		(playerId ? idMap[playerId] : "")
 		: ""
 
 	// Seat positions around the table (up to 9)
