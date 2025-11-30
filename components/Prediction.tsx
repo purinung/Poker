@@ -17,6 +17,13 @@ import {
 } from "@/components/ui/sheet"
 
 import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@/components/ui/tabs"
+
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -111,93 +118,103 @@ const Prediction = ({
 
 	const tableData = prediction
 		? // Create a map for quick lookup of existing hand strengths
-			(() => {
-				const playerHandMap = new Map(
-					prediction.handStrengths.map((h) => [h.handRank, h.percentage]),
-				)
-				const opponentHandMap = new Map(
-					prediction.opponentHandStrengths.map((h) => [
-						h.handRank,
-						h.percentage,
-					]),
-				)
+		(() => {
+			const playerHandMap = new Map(
+				prediction.handStrengths.map((h) => [h.handRank, h.percentage]),
+			)
+			const opponentHandMap = new Map(
+				prediction.opponentHandStrengths.map((h) => [
+					h.handRank,
+					h.percentage,
+				]),
+			)
 
-				// Show all possible hand ranks, ordered from best to worst
-				const allHandRanks = [
-					HandRankEnum.ROYALFLUSH,
-					HandRankEnum.STRAIGHTFLUSH,
-					HandRankEnum.FOUROFKIND,
-					HandRankEnum.FULLHOUSE,
-					HandRankEnum.FLUSH,
-					HandRankEnum.STRAIGHT,
-					HandRankEnum.THREEOFAKIND,
-					HandRankEnum.TWOPAIR,
-					HandRankEnum.ONEPAIR,
-					HandRankEnum.HIGHCARD,
-				]
+			// Show all possible hand ranks, ordered from best to worst
+			const allHandRanks = [
+				HandRankEnum.ROYALFLUSH,
+				HandRankEnum.STRAIGHTFLUSH,
+				HandRankEnum.FOUROFKIND,
+				HandRankEnum.FULLHOUSE,
+				HandRankEnum.FLUSH,
+				HandRankEnum.STRAIGHT,
+				HandRankEnum.THREEOFAKIND,
+				HandRankEnum.TWOPAIR,
+				HandRankEnum.ONEPAIR,
+				HandRankEnum.HIGHCARD,
+			]
 
-				const tableRows = allHandRanks.map((handRank) => {
-					const handStrength = prediction.handStrengths.find(
-						(h) => h.handRank === handRank,
-					)
-					return {
-						handType: getHandRankDisplayName(handRank),
-						handRank: handRank,
-						playerOdds: (playerHandMap.get(handRank) || 0).toFixed(1),
-						opponentOdds: (opponentHandMap.get(handRank) || 0).toFixed(1),
-						playerPercentage: playerHandMap.get(handRank) || 0,
-						opponentPercentage: opponentHandMap.get(handRank) || 0,
-						tiePercentage: handStrength?.tiePercentage || 0,
-						winPercentage: handStrength?.winPercentage || 0,
-						losePercentage: handStrength?.losePercentage || 0,
+			const tableRows = allHandRanks.map((handRank) => {
+				const handStrength = prediction.handStrengths.find(
+					(h) => h.handRank === handRank,
+				)
+				return {
+					handType: getHandRankDisplayName(handRank),
+					handRank: handRank,
+					playerOdds: (playerHandMap.get(handRank) || 0).toFixed(1),
+					opponentOdds: (opponentHandMap.get(handRank) || 0).toFixed(1),
+					playerPercentage: playerHandMap.get(handRank) || 0,
+					opponentPercentage: opponentHandMap.get(handRank) || 0,
+					tiePercentage: handStrength?.tiePercentage || 0,
+					winPercentage: handStrength?.winPercentage || 0,
+					losePercentage: handStrength?.losePercentage || 0,
+					// Opponent stats
+					opponentWinPercentage:
+						prediction.opponentHandStrengths.find((h) => h.handRank === handRank)
+							?.winPercentage || 0,
+					opponentTiePercentage:
+						prediction.opponentHandStrengths.find((h) => h.handRank === handRank)
+							?.tiePercentage || 0,
+					opponentLosePercentage:
+						prediction.opponentHandStrengths.find((h) => h.handRank === handRank)
+							?.losePercentage || 0,
+				}
+			})
+
+			// Find highest and lowest percentages
+			const maxPlayerPercentage = Math.max(
+				...tableRows.map((row) => row.playerPercentage),
+			)
+			const minPlayerPercentage = Math.min(
+				...tableRows
+					.filter((row) => row.playerPercentage > 0)
+					.map((row) => row.playerPercentage),
+			)
+
+			return tableRows.map((row) => {
+				// Determine the dominant outcome for this hand type
+				const maxOutcome = Math.max(
+					row.winPercentage,
+					row.tiePercentage,
+					row.losePercentage,
+				)
+				let outcomeColor = "white"
+				if (maxOutcome > 0) {
+					if (row.winPercentage === maxOutcome) {
+						outcomeColor = "green"
+					} else if (row.tiePercentage === maxOutcome) {
+						outcomeColor = "yellow"
+					} else if (row.losePercentage === maxOutcome) {
+						outcomeColor = "red"
 					}
-				})
+				}
 
-				// Find highest and lowest percentages
-				const maxPlayerPercentage = Math.max(
-					...tableRows.map((row) => row.playerPercentage),
-				)
-				const minPlayerPercentage = Math.min(
-					...tableRows
-						.filter((row) => row.playerPercentage > 0)
-						.map((row) => row.playerPercentage),
-				)
-
-				return tableRows.map((row) => {
-					// Determine the dominant outcome for this hand type
-					const maxOutcome = Math.max(
-						row.winPercentage,
-						row.tiePercentage,
-						row.losePercentage,
-					)
-					let outcomeColor = "white"
-					if (maxOutcome > 0) {
-						if (row.winPercentage === maxOutcome) {
-							outcomeColor = "green"
-						} else if (row.tiePercentage === maxOutcome) {
-							outcomeColor = "yellow"
-						} else if (row.losePercentage === maxOutcome) {
-							outcomeColor = "red"
-						}
-					}
-
-					return {
-						...row,
-						isHighest:
-							row.playerPercentage === maxPlayerPercentage &&
-							maxPlayerPercentage > 0,
-						isLowest:
-							row.playerPercentage === minPlayerPercentage &&
-							minPlayerPercentage > 0 &&
-							minPlayerPercentage < maxPlayerPercentage,
-						isTie:
-							row.playerPercentage > 0 &&
-							row.opponentPercentage > 0 &&
-							row.playerPercentage === row.opponentPercentage,
-						outcomeColor,
-					}
-				})
-			})()
+				return {
+					...row,
+					isHighest:
+						row.playerPercentage === maxPlayerPercentage &&
+						maxPlayerPercentage > 0,
+					isLowest:
+						row.playerPercentage === minPlayerPercentage &&
+						minPlayerPercentage > 0 &&
+						minPlayerPercentage < maxPlayerPercentage,
+					isTie:
+						row.playerPercentage > 0 &&
+						row.opponentPercentage > 0 &&
+						row.playerPercentage === row.opponentPercentage,
+					outcomeColor,
+				}
+			})
+		})()
 		: []
 
 	return (
@@ -367,7 +384,7 @@ const Prediction = ({
 								</CardContent>
 							</UICard>
 
-							{/* Hand Strength Distribution */}
+							{/* Hand Strength Analysis */}
 							<UICard className="bg-accent-black">
 								<CardHeader className="pb-3">
 									<CardTitle className="text-accent-white text-xl">
@@ -375,103 +392,166 @@ const Prediction = ({
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
-									<Table className="w-full table-fixed">
-										<TableHeader>
-											<TableRow>
-												<TableHead className="w-[40%] px-2 text-sm">
-													Hand Type
-												</TableHead>
-												<TableHead className="w-[20%] px-1 text-center text-sm">
-													Win
-												</TableHead>
-												<TableHead className="w-[20%] px-1 text-center text-sm">
-													Tie
-												</TableHead>
-												<TableHead className="w-[20%] px-1 text-center text-sm">
-													Lose
-												</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{tableData.map((row) => (
-												<React.Fragment key={row.handType}>
-													<TableRow className="text-sm">
-														<TableCell className="w-[40%] px-2 py-2 font-medium">
-															<button
-																className={`block w-full cursor-pointer truncate text-left text-xs underline-offset-4 hover:underline focus:underline focus:outline-none ${
-																	row.outcomeColor === "green"
-																		? "text-accent-green"
-																		: row.outcomeColor === "yellow"
-																			? "text-yellow-400"
-																			: row.outcomeColor === "red"
-																				? "text-accent-red"
-																				: "text-accent-white"
-																}`}
-																onClick={() =>
-																	setExpandedHandType(
-																		expandedHandType === row.handType
-																			? null
-																			: row.handType,
-																	)
-																}
-																title={row.handType}
-															>
-																{row.handType}
-															</button>
-														</TableCell>
-														<TableCell className="w-[20%] px-1 py-2 text-center">
-															<Badge className="bg-accent-green text-accent-white px-1 text-xs">
-																{row.winPercentage.toFixed(1)}%
-															</Badge>
-														</TableCell>
-														<TableCell className="w-[20%] px-1 py-2 text-center">
-															<Badge className="text-accent-white bg-yellow-500 px-1 text-xs">
-																{row.tiePercentage.toFixed(1)}%
-															</Badge>
-														</TableCell>
-														<TableCell className="w-[20%] px-1 py-2 text-center">
-															<Badge className="bg-accent-red text-accent-white px-1 text-xs">
-																{row.losePercentage.toFixed(1)}%
-															</Badge>
-														</TableCell>
+									<Tabs defaultValue="player" className="w-full">
+										<TabsList className="bg-accent-gray/20 grid w-full grid-cols-2 mb-4">
+											<TabsTrigger value="player">Player</TabsTrigger>
+											<TabsTrigger value="opponent">Opponent</TabsTrigger>
+										</TabsList>
+
+										<TabsContent value="player">
+											<Table className="w-full table-fixed">
+												<TableHeader>
+													<TableRow>
+														<TableHead className="w-[40%] px-2 text-sm">
+															Hand Type
+														</TableHead>
+														<TableHead className="w-[20%] px-1 text-center text-sm">
+															Win
+														</TableHead>
+														<TableHead className="w-[20%] px-1 text-center text-sm">
+															Tie
+														</TableHead>
+														<TableHead className="w-[20%] px-1 text-center text-sm">
+															Lose
+														</TableHead>
 													</TableRow>
-													{expandedHandType === row.handType && (
-														<TableRow>
-															<TableCell colSpan={4} className="py-2">
-																<div className="bg-accent-black max-w-full space-y-2 overflow-hidden rounded-lg p-3">
-																	<div>
-																		<h4 className="text-accent-white text-sm font-semibold">
-																			{row.handType}
-																		</h4>
-																		<p className="text-accent-gray mt-1 text-xs break-words">
-																			{HandExamples.getHandDescription(
-																				row.handRank,
-																			)}
-																		</p>
-																	</div>
-																	<div>
-																		<p className="text-accent-gray mb-1 text-xs">
-																			Example:
-																		</p>
-																		<div className="flex flex-wrap justify-center gap-1">
-																			{HandExamples.getExampleHand(
-																				row.handRank,
-																			).map((card, cardIndex) => (
-																				<MiniCard
-																					key={`${card.rank}-${card.suit}-${cardIndex}`}
-																					card={card}
-																				/>
-																			))}
+												</TableHeader>
+												<TableBody>
+													{tableData.map((row) => (
+														<React.Fragment key={row.handType}>
+															<TableRow className="text-sm">
+																<TableCell className="w-[40%] px-2 py-2 font-medium">
+																	<button
+																		className={`block w-full cursor-pointer truncate text-left text-xs underline-offset-4 hover:underline focus:underline focus:outline-none ${row.outcomeColor === "green"
+																			? "text-accent-green"
+																			: row.outcomeColor === "yellow"
+																				? "text-yellow-400"
+																				: row.outcomeColor === "red"
+																					? "text-accent-red"
+																					: "text-accent-white"
+																			}`}
+																		onClick={() =>
+																			setExpandedHandType(
+																				expandedHandType === row.handType
+																					? null
+																					: row.handType,
+																			)
+																		}
+																		title={row.handType}
+																	>
+																		{row.handType}
+																	</button>
+																</TableCell>
+																<TableCell className="w-[20%] px-1 py-2 text-center">
+																	<Badge className="bg-accent-green text-accent-white px-1 text-xs">
+																		{row.winPercentage.toFixed(1)}%
+																	</Badge>
+																</TableCell>
+																<TableCell className="w-[20%] px-1 py-2 text-center">
+																	<Badge className="text-accent-white bg-yellow-500 px-1 text-xs">
+																		{row.tiePercentage.toFixed(1)}%
+																	</Badge>
+																</TableCell>
+																<TableCell className="w-[20%] px-1 py-2 text-center">
+																	<Badge className="bg-accent-red text-accent-white px-1 text-xs">
+																		{row.losePercentage.toFixed(1)}%
+																	</Badge>
+																</TableCell>
+															</TableRow>
+															{expandedHandType === row.handType && (
+																<TableRow>
+																	<TableCell colSpan={4} className="py-2">
+																		<div className="bg-accent-black max-w-full space-y-2 overflow-hidden rounded-lg p-3">
+																			<div>
+																				<h4 className="text-accent-white text-sm font-semibold">
+																					{row.handType}
+																				</h4>
+																				<p className="text-accent-gray mt-1 text-xs break-words">
+																					{HandExamples.getHandDescription(
+																						row.handRank,
+																					)}
+																				</p>
+																			</div>
+																			<div>
+																				<p className="text-accent-gray mb-1 text-xs">
+																					Example:
+																				</p>
+																				<div className="flex flex-wrap justify-center gap-1">
+																					{HandExamples.getExampleHand(
+																						row.handRank,
+																					).map((card, cardIndex) => (
+																						<MiniCard
+																							key={`${card.rank}-${card.suit}-${cardIndex}`}
+																							card={card}
+																						/>
+																					))}
+																				</div>
+																			</div>
 																		</div>
-																	</div>
-																</div>
+																	</TableCell>
+																</TableRow>
+															)}
+														</React.Fragment>
+													))}
+												</TableBody>
+											</Table>
+										</TabsContent>
+
+										<TabsContent value="opponent">
+											<div className="mb-2 text-center">
+												<p className="text-accent-gray text-xs">
+													What hands is the opponent holding?
+												</p>
+											</div>
+											<Table className="w-full table-fixed">
+												<TableHeader>
+													<TableRow>
+														<TableHead className="w-[40%] px-2 text-sm">
+															Hand Type
+														</TableHead>
+														<TableHead className="w-[20%] px-1 text-center text-sm">
+															Freq
+														</TableHead>
+														<TableHead className="w-[20%] px-1 text-center text-sm">
+															Win
+														</TableHead>
+														<TableHead className="w-[20%] px-1 text-center text-sm">
+															Lose
+														</TableHead>
+													</TableRow>
+												</TableHeader>
+												<TableBody>
+													{tableData.map((row) => (
+														<TableRow key={row.handType} className="text-sm">
+															<TableCell className="w-[40%] px-2 py-2 font-medium">
+																<span className="text-accent-white block w-full truncate text-left text-xs">
+																	{row.handType}
+																</span>
+															</TableCell>
+															<TableCell className="w-[20%] px-1 py-2 text-center">
+																<Badge
+																	variant="outline"
+																	className="text-accent-white border-accent-gray px-1 text-xs"
+																>
+																	{row.opponentPercentage.toFixed(1)}%
+																</Badge>
+															</TableCell>
+															<TableCell className="w-[20%] px-1 py-2 text-center">
+																<Badge className="bg-accent-green text-accent-white px-1 text-xs">
+																	{row.opponentWinPercentage.toFixed(1)}%
+																</Badge>
+															</TableCell>
+															<TableCell className="w-[20%] px-1 py-2 text-center">
+																<Badge className="bg-accent-red text-accent-white px-1 text-xs">
+																	{row.opponentLosePercentage.toFixed(1)}%
+																</Badge>
 															</TableCell>
 														</TableRow>
-													)}
-												</React.Fragment>
-											))}
-										</TableBody>
-									</Table>
+													))}
+												</TableBody>
+											</Table>
+										</TabsContent>
+									</Tabs>
 								</CardContent>
 							</UICard>
 						</>
